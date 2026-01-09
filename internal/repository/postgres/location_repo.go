@@ -95,3 +95,23 @@ func (r *LocationRepo) ListByUser(ctx context.Context, userID uuid.UUID, limit i
 
 	return locations, nil
 }
+
+func (r *LocationRepo) CountUniqueUsers(ctx context.Context, since time.Time) (int, error) {
+	query, args, err := r.builder.
+		Select("COUNT(DISTINCT user_id)").
+		From("locations").
+		Where(squirrel.GtOrEq{"timestamp": since}).
+		PlaceholderFormat(squirrel.Dollar).
+		ToSql()
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	err = r.pgxPool.QueryRow(ctx, query, args...).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}

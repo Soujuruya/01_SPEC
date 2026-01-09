@@ -13,4 +13,6 @@ type IncidentRepository interface {
 	Deactivate(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, offset, limit int) ([]*Incident, error)
 	GetActiveIncidents(ctx context.Context) ([]*Incident, error)
+	CountActiveIncidents(ctx context.Context) (int, error)
+	ListWithTotal(ctx context.Context, offset, limit int) ([]*Incident, int, error)
 }

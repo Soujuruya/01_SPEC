@@ -20,6 +20,18 @@ type Incident struct {
 	UpdatedAt time.Time `json:"-"`          // дата изменения информации об инциденте
 }
 
+func NewIncident(title string, lat, lng, radius float64, isActive bool) *Incident {
+	return &Incident{
+		ID:        uuid.New(),
+		Title:     title,
+		Lat:       lat,
+		Lng:       lng,
+		Radius:    radius,
+		IsActive:  isActive,
+		CreatedAt: time.Now(),
+	}
+}
+
 // IsPointInRadius Вычисление расстояние между двумя точками на сфере
 func (i *Incident) IsPointInRadius(lat, lng float64) bool {
 	radLat := math.Pi * i.Lat / 180.0
