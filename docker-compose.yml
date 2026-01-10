@@ -1,0 +1,82 @@
+services:
+  # Postgres
+  postgres:
+    image: postgres:15
+    container_name: incidents-postgres
+    restart: always
+    env_file: ./config/.env
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+    volumes:
+      - incidents-postgres-data:/var/lib/postgresql/data
+    networks: [internal]
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: incidents-redis
+    restart: always
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+    volumes:
+      - incidents-redis-data:/data
+    networks: [internal]
+
+  # Миграции
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: incidents-migrate
+    env_file: ./config/.env
+    entrypoint: ["/app/migrate", "-command", "up", "-path", "./migrations"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  # API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: service
+    container_name: incidents-service
+    env_file: ./config/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${HTTP_PORT}:${HTTP_PORT}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${HTTP_PORT}/api/v1/system/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+    networks: [internal]
+
+
+volumes:
+  incidents-postgres-data:
+  incidents-redis-data:
+
+networks:
+  internal:
+    driver: bridge

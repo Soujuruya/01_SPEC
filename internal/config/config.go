@@ -39,7 +39,7 @@ type RedisConfig struct {
 
 func (c DBConfig) DSN() string {
 	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s",
+		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		c.User, c.Password, c.Host, c.Port, c.Name,
 	)
 }
