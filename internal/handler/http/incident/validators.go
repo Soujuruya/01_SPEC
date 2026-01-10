@@ -13,10 +13,11 @@ func ValidateCreateIncident(req *CreateIncidentRequest) error {
 		return fmt.Errorf("latitude must be between -90 and 90, got %f", req.Lat)
 	}
 	if req.Lng < -180 || req.Lng > 180 {
+
 		return fmt.Errorf("longitude must be between -180 and 180, got %f", req.Lng)
 	}
-	if req.Radius < 0 {
-		return fmt.Errorf("radius must be non-negative, got %f", req.Radius)
+	if req.Radius <= 0 {
+		return fmt.Errorf("radius must be non-negative or null, got %f", req.Radius)
 	}
 	return nil
 }
@@ -33,16 +34,6 @@ func ValidateUpdateIncident(req *UpdateIncidentRequest) error {
 	}
 	if req.Radius != nil && *req.Radius < 0 {
 		return fmt.Errorf("radius must be non-negative, got %f", *req.Radius)
-	}
-	return nil
-}
-
-func ValidateCoordinates(lat, lng float64) error {
-	if lat < -90 || lat > 90 {
-		return fmt.Errorf("invalid latitude: %f", lat)
-	}
-	if lng < -180 || lng > 180 {
-		return fmt.Errorf("invalid longitude: %f", lng)
 	}
 	return nil
 }

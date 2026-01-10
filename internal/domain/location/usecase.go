@@ -1,5 +1,9 @@
 package location
 
+import (
+	"context"
+)
+
 type WebhookQueue interface {
-	Enqueue(loc *Location)
+	Enqueue(ctx context.Context, loc *Location) error
 }

@@ -49,7 +49,7 @@ func (s *LocationService) CheckLocation(ctx context.Context, userID uuid.UUID, l
 	}
 
 	if loc.IsCheck {
-		s.Queue.Enqueue(loc)
+		s.Queue.Enqueue(ctx, loc)
 	}
 
 	return loc, nil

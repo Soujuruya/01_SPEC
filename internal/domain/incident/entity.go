@@ -34,20 +34,21 @@ func NewIncident(title string, lat, lng, radius float64, isActive bool) *Inciden
 
 // IsPointInRadius Вычисление расстояние между двумя точками на сфере
 func (i *Incident) IsPointInRadius(lat, lng float64) bool {
-	radLat := math.Pi * i.Lat / 180.0
-	radLng := math.Pi * i.Lng / 180.0
-	radLatVerified := math.Pi * lat / 180.0
-	radLngVerified := math.Pi * lng / 180.0
+	//переводим градусы в радианы
+	lat1 := i.Lat * math.Pi / 180.0
+	lng1 := i.Lng * math.Pi / 180.0
+	lat2 := lat * math.Pi / 180.0
+	lng2 := lng * math.Pi / 180.0
 
-	deltaRadLat := radLatVerified - radLat
-	deltaRadLng := radLngVerified - radLng
+	dLat := lat2 - lat1
+	dLng := lng2 - lng1
+	//формулы
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1)*math.Cos(lat2)*
+			math.Sin(dLng/2)*math.Sin(dLng/2)
 
-	halfChord := math.Pow(math.Sin(deltaRadLat/2), 2) +
-		math.Cos(radLat)*math.Cos(radLatVerified)*
-			math.Pow(math.Sin(deltaRadLng/2), 2)
-
-	angularDistance := 2 * math.Atan2(math.Sqrt(halfChord), math.Sqrt(1-halfChord))
-	distanceMeters := EarthRadiusMeters * angularDistance // расстояние в метрах
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	distanceMeters := EarthRadiusMeters * c
 
 	return distanceMeters <= i.Radius
 }

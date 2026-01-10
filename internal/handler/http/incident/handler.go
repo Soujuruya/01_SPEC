@@ -18,6 +18,12 @@ type IncidentHandler struct {
 	Service *usecase.IncidentService
 }
 
+func NewIncidentHandler(service *usecase.IncidentService) *IncidentHandler {
+	return &IncidentHandler{
+		Service: service,
+	}
+}
+
 func (h *IncidentHandler) CreateIncidents(w http.ResponseWriter, r *http.Request) {
 	var incidentDTO CreateIncidentRequest
 
@@ -32,7 +38,7 @@ func (h *IncidentHandler) CreateIncidents(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	incident := incident.NewIncident(incidentDTO.Title, incidentDTO.Lat, incidentDTO.Lng, incidentDTO.Radius, incidentDTO.IsActive)
+	incident := incident.NewIncident(incidentDTO.Title, incidentDTO.Lat, incidentDTO.Lng, incidentDTO.Radius, true)
 	err = h.Service.CreateIncident(r.Context(), incident)
 	if err != nil {
 		httphelper.WriteError(w, err, http.StatusInternalServerError)
@@ -45,7 +51,7 @@ func (h *IncidentHandler) CreateIncidents(w http.ResponseWriter, r *http.Request
 }
 
 func (h *IncidentHandler) GetIncident(w http.ResponseWriter, r *http.Request) {
-	id, err := httphelper.ParseUUIDFromQuery(r, "id")
+	id, err := httphelper.ParseUUIDFromPath(r, "/api/v1/incidents/")
 	if err != nil {
 		httphelper.WriteError(w, err, http.StatusBadRequest)
 		return
@@ -119,7 +125,7 @@ func (h *IncidentHandler) GetActiveIncidents(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *IncidentHandler) DeactivateIncident(w http.ResponseWriter, r *http.Request) {
-	id, err := httphelper.ParseUUIDFromQuery(r, "id")
+	id, err := httphelper.ParseUUIDFromPath(r, "/api/v1/incidents/")
 	if err != nil {
 		httphelper.WriteError(w, err, http.StatusBadRequest)
 		return
@@ -139,7 +145,7 @@ func (h *IncidentHandler) DeactivateIncident(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *IncidentHandler) UpdateIncident(w http.ResponseWriter, r *http.Request) {
-	id, err := httphelper.ParseUUIDFromQuery(r, "id")
+	id, err := httphelper.ParseUUIDFromPath(r, "/api/v1/incidents/")
 	if err != nil {
 		httphelper.WriteError(w, err, http.StatusBadRequest)
 		return

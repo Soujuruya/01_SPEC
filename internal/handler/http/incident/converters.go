@@ -12,6 +12,7 @@ func IncidentToResponse(inc *incident.Incident) IncidentResponse {
 		Title:     inc.Title,
 		Lat:       inc.Lat,
 		Lng:       inc.Lng,
+		Radius:    inc.Radius,
 		IsActive:  inc.IsActive,
 		CreatedAt: inc.CreatedAt.Format(time.RFC3339),
 	}

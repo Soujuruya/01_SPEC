@@ -8,15 +8,24 @@ import (
 )
 
 type IncidentService struct {
-	Repo incident.IncidentRepository
+	Repo  incident.IncidentRepository
+	Cache incident.IncidentCache
 }
 
-func NewIncidentService(repo incident.IncidentRepository) *IncidentService {
-	return &IncidentService{Repo: repo}
+func NewIncidentService(repo incident.IncidentRepository, cache incident.IncidentCache) *IncidentService {
+	return &IncidentService{
+		Repo:  repo,
+		Cache: cache,
+	}
 }
 
 func (s *IncidentService) CreateIncident(ctx context.Context, inc *incident.Incident) error {
-	return s.Repo.Create(ctx, inc)
+	if err := s.Repo.Create(ctx, inc); err != nil {
+		return err
+	}
+
+	_ = s.Cache.InvalidateActive(ctx)
+	return nil
 }
 
 func (s *IncidentService) GetIncident(ctx context.Context, id uuid.UUID) (*incident.Incident, error) {
@@ -24,11 +33,21 @@ func (s *IncidentService) GetIncident(ctx context.Context, id uuid.UUID) (*incid
 }
 
 func (s *IncidentService) UpdateIncident(ctx context.Context, inc *incident.Incident) error {
-	return s.Repo.Update(ctx, inc)
+	if err := s.Repo.Update(ctx, inc); err != nil {
+		return err
+	}
+
+	_ = s.Cache.InvalidateActive(ctx)
+	return nil
 }
 
 func (s *IncidentService) DeactivateIncident(ctx context.Context, id uuid.UUID) error {
-	return s.Repo.Deactivate(ctx, id)
+	if err := s.Repo.Deactivate(ctx, id); err != nil {
+		return err
+	}
+
+	_ = s.Cache.InvalidateActive(ctx)
+	return nil
 }
 
 func (s *IncidentService) ListIncidents(ctx context.Context, offset, limit int) ([]*incident.Incident, int, error) {
@@ -36,7 +55,19 @@ func (s *IncidentService) ListIncidents(ctx context.Context, offset, limit int) 
 }
 
 func (s *IncidentService) GetActiveIncidents(ctx context.Context) ([]*incident.Incident, error) {
-	return s.Repo.GetActiveIncidents(ctx)
+	incs, err := s.Cache.GetActive(ctx)
+	if err == nil {
+		return incs, nil
+	}
+
+	incs, err = s.Repo.GetActiveIncidents(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.Cache.SetActive(ctx, incs)
+
+	return incs, nil
 }
 
 func (s *IncidentService) CountActiveIncidents(ctx context.Context) (int, error) {

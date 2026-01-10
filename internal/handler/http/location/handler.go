@@ -12,6 +12,10 @@ type LocationHandler struct {
 	Service *usecase.LocationService
 }
 
+func NewLocationHandler(service *usecase.LocationService) *LocationHandler {
+	return &LocationHandler{Service: service}
+}
+
 // CheckLocation возвращает последние локации пользователя
 func (h *LocationHandler) CheckLocation(w http.ResponseWriter, r *http.Request) {
 	var req CheckLocationRequest

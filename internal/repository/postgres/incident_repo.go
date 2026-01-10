@@ -18,6 +18,13 @@ type IncidentRepo struct {
 	builder squirrel.StatementBuilderType
 }
 
+func NewIncidentRepo(pgxPool *pgxpool.Pool) *IncidentRepo {
+	return &IncidentRepo{
+		pgxPool: pgxPool,
+		builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+	}
+}
+
 func (r *IncidentRepo) CountActiveIncidents(ctx context.Context) (int, error) {
 	query, args, err := r.builder.
 		Select("COUNT(*)").
@@ -35,13 +42,6 @@ func (r *IncidentRepo) CountActiveIncidents(ctx context.Context) (int, error) {
 	}
 
 	return total, nil
-}
-
-func NewIncidentRepo(pgxPool *pgxpool.Pool) *IncidentRepo {
-	return &IncidentRepo{
-		pgxPool: pgxPool,
-		builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
-	}
 }
 
 func (r *IncidentRepo) GetActiveIncidents(ctx context.Context) ([]*incident.Incident, error) {
