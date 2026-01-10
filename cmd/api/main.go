@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -13,8 +12,10 @@ import (
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/health"
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/incident"
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/location"
+	"github.com/Soujuruya/01_SPEC/internal/handler/http/middleware"
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/stats"
 	"github.com/Soujuruya/01_SPEC/internal/integration"
+	"github.com/Soujuruya/01_SPEC/internal/pkg/logger"
 	redispkg "github.com/Soujuruya/01_SPEC/internal/pkg/redis"
 	"github.com/Soujuruya/01_SPEC/internal/repository/postgres"
 	"github.com/Soujuruya/01_SPEC/internal/repository/redis"
@@ -26,71 +27,87 @@ import (
 )
 
 func main() {
-	// 1. Конфиг
+	// Конфиг
 	configPath := flag.String("config", "", "path to config file")
 	flag.Parse()
+
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		panic("failed to load config: " + err.Error())
 	}
 
-	// 2. Postgres
+	//Логгер
+	lg := logger.New(cfg.Environment)
+	defer func() { _ = lg.Sync() }()
+
+	//  Postgres
 	dbURL := cfg.DB.DSN()
 	pgxPool, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
-		log.Fatalf("failed to connect postgres: %v", err)
+		log.Fatal("failed to connect postgres", "error", err)
 	}
 	defer pgxPool.Close()
+	lg.Info("postgres connected")
 
+	// Redis
 	rdb := redispkg.NewClient(&cfg.Redis)
 	defer func() {
 		if err := rdb.Close(); err != nil {
-			fmt.Println("error closing Redis:", err)
+			lg.Error("failed to close Redis", "error", err)
 		}
 	}()
+	lg.Info("redis connected")
 
-	// 4. Репозитории
-	incidentRepo := postgres.NewIncidentRepo(pgxPool)
-	locationRepo := postgres.NewLocationRepo(pgxPool)
+	//  Репозитории
+	incidentRepo := postgres.NewIncidentRepo(pgxPool, lg)
+	locationRepo := postgres.NewLocationRepo(pgxPool, lg)
 
-	// 5. Кэш и очередь
-	incidentCache := redis.NewIncidentCache(rdb, "active_incidents", cfg.CacheTTL)
-	webhookQueue := redis.NewWebhookQueue(rdb, "webhook_queue")
+	// Кэш и очередь
+	incidentCache := redis.NewIncidentCache(rdb, "active_incidents", cfg.CacheTTL, lg)
+	webhookQueue := redis.NewWebhookQueue(rdb, "webhook_queue", lg)
 
-	// 6. Сервисы
-	incidentService := usecase.NewIncidentService(incidentRepo, incidentCache)
-	locationService := usecase.NewLocationService(locationRepo, incidentRepo, webhookQueue)
-	statsService := usecase.NewStatsService(locationRepo)
-	fmt.Printf("%+v\n", incidentService)
+	//  Сервисы
+	incidentService := usecase.NewIncidentService(incidentRepo, incidentCache, lg)
+	locationService := usecase.NewLocationService(locationRepo, incidentRepo, webhookQueue, lg)
+	statsService := usecase.NewStatsService(locationRepo, lg)
 
-	// 6.1. Воркер для вебхуков
-	webhookClient := integration.NewWebhookClient(cfg.WebhookURL, cfg.HandleTimeout)
-	worker := worker.NewWebhookWorker(rdb, "webhook_queue", webhookClient, cfg.RetryLimit, cfg.RetryDelay)
-	go worker.Run(context.Background())
+	// Воркер для вебхуков
+	webhookClient := integration.NewWebhookClient(cfg.WebhookURL, cfg.HandleTimeout, lg)
+	worker := worker.NewWebhookWorker(rdb, "webhook_queue", webhookClient, cfg.RetryLimit, cfg.RetryDelay, lg)
+	go worker.Run(context.Background(), lg)
 
-	// 7. Хендлеры
-	healthHandler := health.NewHealthHandler()
-	incidentHandler := incident.NewIncidentHandler(incidentService)
-	locationHandler := location.NewLocationHandler(locationService)
-	statsHandler := stats.NewStatsHandler(statsService, cfg)
-	fmt.Printf("%+v\n", incidentHandler.Service)
+	// Хендлеры
+	healthHandler := health.NewHealthHandler(lg)
+	incidentHandler := incident.NewIncidentHandler(incidentService, lg)
+	locationHandler := location.NewLocationHandler(locationService, lg)
+	statsHandler := stats.NewStatsHandler(statsService, cfg, lg)
 
-	srv := server.NewServer(cfg, healthHandler, incidentHandler, locationHandler, statsHandler)
+	//  HTTP Server
+	srv := server.NewServer(cfg,
+		healthHandler,
+		incidentHandler,
+		locationHandler,
+		statsHandler,
+		middleware.Logger(lg), //  middleware логирования
+	)
 
 	go func() {
 		if err := srv.Start(); err != nil {
-			log.Fatalf("server failed: %v", err)
+			log.Fatal("server failed", "error", err)
 		}
 	}()
 
+	//Graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.HandleTimeout)
 	defer cancel()
+
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("server shutdown failed: %v", err)
+		log.Fatal("server shutdown failed", "error", err)
 	}
-	log.Println("server stopped gracefully")
+
+	lg.Info("server stopped gracefully")
 }

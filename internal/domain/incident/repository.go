@@ -15,6 +15,7 @@ type IncidentRepository interface {
 	GetActiveIncidents(ctx context.Context) ([]*Incident, error)
 	CountActiveIncidents(ctx context.Context) (int, error)
 	ListWithTotal(ctx context.Context, offset, limit int) ([]*Incident, int, error)
+	CountAll(ctx context.Context) (int, error)
 }
 
 type IncidentCache interface {

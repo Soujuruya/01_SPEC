@@ -12,6 +12,8 @@ import (
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/stats"
 )
 
+type Middleware func(http.Handler) http.Handler
+
 type Server struct {
 	httpServer *http.Server
 	cfg        *config.Config
@@ -22,6 +24,7 @@ func NewServer(cfg *config.Config,
 	incidentHandler *incident.IncidentHandler,
 	locationHandler *location.LocationHandler,
 	statsHandler *stats.StatsHandler,
+	middlewares ...Middleware,
 ) *Server {
 
 	mux := http.NewServeMux()
@@ -29,7 +32,7 @@ func NewServer(cfg *config.Config,
 	// Health-check
 	mux.HandleFunc("/api/v1/system/health", healthHandler.HealthCheck)
 
-	// Список инцидентов,создание
+	// Список инцидентов, создание
 	mux.HandleFunc("/api/v1/incidents", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -70,9 +73,14 @@ func NewServer(cfg *config.Config,
 	// Статистика
 	mux.HandleFunc("/api/v1/incidents/stats", statsHandler.GetIncidentsStats)
 
+	var handler http.Handler = mux
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		handler = middlewares[i](handler)
+	}
+
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.HTTPPort),
-		Handler:      mux,
+		Handler:      handler,
 		ReadTimeout:  cfg.HandleTimeout,
 		WriteTimeout: cfg.HandleTimeout,
 		IdleTimeout:  cfg.HandleTimeout,
