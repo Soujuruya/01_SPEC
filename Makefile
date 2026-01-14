@@ -1,11 +1,11 @@
-# Makefile
 ENV_FILE := ./config/.env
+LOCAL_CONFIG := ./config/local.env
+MIGRATIONS_PATH := ./migrations
 
 DC := docker compose --env-file $(ENV_FILE)
 
-DOCKER_WAIT := 60
-
-.PHONY: up stub stop clean
+.PHONY: up stub docker stop clean \
+        migrate-up migrate-down migrate-version
 
 up: stub docker
 
@@ -13,7 +13,7 @@ stub:
 	@echo "[Makefile] Starting webhook stub on port 9090..."
 	@nohup go run ./webhook_stub/main.go > webhook_stub.log 2>&1 & echo $$! > .webhook_stub.pid
 	@sleep 1
-	@echo "[Makefile] Webhook stub started with PID $$(cat .webhook_stub.pid)"do
+	@echo "[Makefile] Webhook stub started with PID $$(cat .webhook_stub.pid)"
 
 docker:
 	@echo "[Makefile] Starting Docker services..."
@@ -36,3 +36,21 @@ stop:
 clean: stop
 	@echo "[Makefile] Removing Docker volumes..."
 	$(DC) down -v --remove-orphans
+
+migrate-up:
+	go run ./cmd/migrate/main.go \
+		-config=$(LOCAL_CONFIG) \
+		-path=$(MIGRATIONS_PATH) \
+		-command=up
+
+migrate-down:
+	go run ./cmd/migrate/main.go \
+		-config=$(LOCAL_CONFIG) \
+		-path=$(MIGRATIONS_PATH) \
+		-command=down
+
+migrate-version:
+	go run ./cmd/migrate/main.go \
+		-config=$(LOCAL_CONFIG) \
+		-path=$(MIGRATIONS_PATH) \
+		-command=version
