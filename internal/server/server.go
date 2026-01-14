@@ -10,6 +10,7 @@ import (
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/incident"
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/location"
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/stats"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Middleware func(http.Handler) http.Handler
@@ -29,6 +30,9 @@ func NewServer(cfg *config.Config,
 
 	mux := http.NewServeMux()
 
+	//DOCS
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
+
 	// Health-check
 	mux.HandleFunc("/api/v1/system/health", healthHandler.HealthCheck)
 
@@ -38,7 +42,7 @@ func NewServer(cfg *config.Config,
 		case http.MethodGet:
 			incidentHandler.GetListIncidents(w, r)
 		case http.MethodPost:
-			incidentHandler.CreateIncidents(w, r)
+			incidentHandler.CreateIncident(w, r)
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}

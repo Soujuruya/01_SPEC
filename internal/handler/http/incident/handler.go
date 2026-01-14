@@ -27,17 +27,28 @@ func NewIncidentHandler(service *usecase.IncidentService, lg *logger.Logger) *In
 	}
 }
 
-func (h *IncidentHandler) CreateIncidents(w http.ResponseWriter, r *http.Request) {
+// CreateIncident godoc
+// @Summary Create Incidents
+// @Description Создаёт новый инцидент с указанным заголовком, координатами и радиусом
+// @Tags incident
+// @Accept json
+// @Produce json
+// @Param request body incident.CreateIncidentRequest true "Incident creation data"
+// @Success 201 {object} incident.IncidentResponse
+// @Failure 400 {object} httphelper.APIResponse
+// @Failure 500 {object} httphelper.APIResponse
+// @Router /incidents [post]
+func (h *IncidentHandler) CreateIncident(w http.ResponseWriter, r *http.Request) {
 	var incidentDTO CreateIncidentRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&incidentDTO); err != nil {
-		h.lg.Error("CreateIncidents: failed to decode request", "error", err)
+		h.lg.Error("CreateIncident: failed to decode request", "error", err)
 		httphelper.WriteError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	if err := ValidateCreateIncident(&incidentDTO); err != nil {
-		h.lg.Error("CreateIncidents: validation failed", "error", err)
+		h.lg.Error("CreateIncident: validation failed", "error", err)
 		httphelper.WriteError(w, err, http.StatusBadRequest)
 		return
 	}
@@ -51,15 +62,26 @@ func (h *IncidentHandler) CreateIncidents(w http.ResponseWriter, r *http.Request
 	)
 
 	if err := h.Service.CreateIncident(r.Context(), inc); err != nil {
-		h.lg.Error("CreateIncidents: failed to create incident", "error", err)
+		h.lg.Error("CreateIncident: failed to create incident", "error", err)
 		httphelper.WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	h.lg.Info("CreateIncidents: incident created", "incident_id", inc.ID, "title", inc.Title)
+	h.lg.Info("CreateIncident: incident created", "incident_id", inc.ID, "title", inc.Title)
 	httphelper.WriteJSON(w, IncidentToResponse(inc), http.StatusCreated)
 }
 
+// GetIncident godoc
+// @Summary Get Incident by ID
+// @Description Получает инцидент по UUID
+// @Tags incident
+// @Produce json
+// @Param id path string true "Incident UUID"
+// @Success 200 {object} incident.IncidentResponse
+// @Failure 400 {object} httphelper.APIResponse "Invalid UUID"
+// @Failure 404 {object} httphelper.APIResponse "Incident not found"
+// @Failure 500 {object} httphelper.APIResponse "Internal server error"
+// @Router /incidents/{id} [get]
 func (h *IncidentHandler) GetIncident(w http.ResponseWriter, r *http.Request) {
 	id, err := httphelper.ParseUUIDFromPath(r, "/api/v1/incidents/")
 	if err != nil {
@@ -84,6 +106,17 @@ func (h *IncidentHandler) GetIncident(w http.ResponseWriter, r *http.Request) {
 	httphelper.WriteJSON(w, IncidentToResponse(inc), http.StatusOK)
 }
 
+// GetListIncidents godoc
+// @Summary Get All Incidents
+// @Description Получает все активные и неактивные инциденты с поддержкой пагинации
+// @Tags incident
+// @Produce json
+// @Param limit query int false "Limit for pagination" default(10)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} incident.IncidentListResponse
+// @Failure 400 {object} httphelper.APIResponse "Invalid limit/offset"
+// @Failure 500 {object} httphelper.APIResponse "Internal server error"
+// @Router /incidents [get]
 func (h *IncidentHandler) GetListIncidents(w http.ResponseWriter, r *http.Request) {
 	limit := 10
 	offset := 0
@@ -124,6 +157,14 @@ func (h *IncidentHandler) GetListIncidents(w http.ResponseWriter, r *http.Reques
 	httphelper.WriteJSON(w, IncidentsToListResponse(incs, offset, limit, total), http.StatusOK)
 }
 
+// GetActiveIncidents godoc
+// @Summary Get All Active Incidents
+// @Description Получает все активные инциденты
+// @Tags incident
+// @Produce json
+// @Success 200 {object} incident.IncidentListResponse
+// @Failure 500 {object} httphelper.APIResponse "Internal server error"
+// @Router /incidents/active [get]
 func (h *IncidentHandler) GetActiveIncidents(w http.ResponseWriter, r *http.Request) {
 	incs, err := h.Service.GetActiveIncidents(r.Context())
 	if err != nil {
@@ -143,6 +184,17 @@ func (h *IncidentHandler) GetActiveIncidents(w http.ResponseWriter, r *http.Requ
 	httphelper.WriteJSON(w, IncidentsToListResponse(incs, 0, len(incs), total), http.StatusOK)
 }
 
+// DeactivateIncident godoc
+// @Summary Deactivate Incident by ID
+// @Description Деактивирует инцидент, не удаляя его полностью
+// @Tags incident
+// @Produce json
+// @Param id path string true "Incident UUID"
+// @Success 204 "No Content"
+// @Failure 400 {object} httphelper.APIResponse "Invalid UUID"
+// @Failure 404 {object} httphelper.APIResponse "Incident not found"
+// @Failure 500 {object} httphelper.APIResponse "Internal server error"
+// @Router /incidents/{id} [delete]
 func (h *IncidentHandler) DeactivateIncident(w http.ResponseWriter, r *http.Request) {
 	id, err := httphelper.ParseUUIDFromPath(r, "/api/v1/incidents/")
 	if err != nil {
@@ -166,6 +218,19 @@ func (h *IncidentHandler) DeactivateIncident(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// UpdateIncident godoc
+// @Summary Update Incident by ID
+// @Description Обновляет данные об инциденте (частичное обновление)
+// @Tags incident
+// @Accept json
+// @Produce json
+// @Param id path string true "Incident UUID"
+// @Param request body incident.UpdateIncidentRequest true "Incident update data"
+// @Success 200 {object} incident.IncidentResponse
+// @Failure 400 {object} httphelper.APIResponse "Invalid UUID or request body"
+// @Failure 404 {object} httphelper.APIResponse "Incident not found"
+// @Failure 500 {object} httphelper.APIResponse "Internal server error"
+// @Router /incidents/{id} [patch]
 func (h *IncidentHandler) UpdateIncident(w http.ResponseWriter, r *http.Request) {
 	id, err := httphelper.ParseUUIDFromPath(r, "/api/v1/incidents/")
 	if err != nil {

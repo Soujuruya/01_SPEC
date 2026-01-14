@@ -17,7 +17,13 @@ func NewHealthHandler(lg *logger.Logger) *HealthHandler {
 	return &HealthHandler{lg: lg}
 }
 
-// HealthCheck возвращает базовый статус сервиса
+// HealthCheck godoc
+// @Summary Health Check
+// @Description Проверка доступности API
+// @Tags health
+// @Produce json
+// @Success 200 {object} map[string]string "status: ok"
+// @Router /system/health [get]
 func (h *HealthHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	h.lg.Debug("HealthHandler.HealthCheck: check received", zap.String("remote_addr", r.RemoteAddr))
 

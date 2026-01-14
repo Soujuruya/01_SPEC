@@ -21,7 +21,17 @@ func NewLocationHandler(service *usecase.LocationService, lg *logger.Logger) *Lo
 	}
 }
 
-// CheckLocation возвращает последние локации пользователя
+// CheckLocation godoc
+// @Summary Check user location incidents
+// @Description Возвращает локации инцидентов, в которые попал пользователь
+// @Tags location
+// @Accept json
+// @Produce json
+// @Param request body location.CheckLocationRequest true "User location data"
+// @Success 200 {object} location.LocationResponse
+// @Failure 400 {object} httphelper.APIResponse
+// @Failure 500 {object} httphelper.APIResponse
+// @Router /location/check [post]
 func (h *LocationHandler) CheckLocation(w http.ResponseWriter, r *http.Request) {
 	var req CheckLocationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

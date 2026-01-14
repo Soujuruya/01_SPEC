@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "github.com/Soujuruya/01_SPEC/cmd/api/docs"
 	"github.com/Soujuruya/01_SPEC/internal/config"
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/health"
 	"github.com/Soujuruya/01_SPEC/internal/handler/http/incident"
@@ -26,6 +27,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// @title 01_SPEC Geo-notification system core API
+// @version 1.0
+// @description API ядро системы геооповещений, интегрируется с новостным порталом (Django) через вебхуки.
+
+// @host localhost:8080
+// @BasePath /api/v1
 func main() {
 	// Конфиг
 	configPath := flag.String("config", "", "path to config file")

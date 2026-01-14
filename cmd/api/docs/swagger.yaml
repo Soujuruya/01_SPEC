@@ -1,0 +1,346 @@
+basePath: /api/v1
+definitions:
+  httphelper.APIResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      status:
+        type: string
+    type: object
+  incident.CreateIncidentRequest:
+    properties:
+      is_active:
+        type: boolean
+      lat:
+        type: number
+      lng:
+        type: number
+      radius:
+        type: number
+      title:
+        type: string
+    type: object
+  incident.IncidentListResponse:
+    properties:
+      incidents:
+        items:
+          $ref: '#/definitions/incident.IncidentResponse'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  incident.IncidentResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      lat:
+        type: number
+      lng:
+        type: number
+      radius:
+        type: number
+      title:
+        type: string
+    type: object
+  incident.UpdateIncidentRequest:
+    properties:
+      is_active:
+        type: boolean
+      lat:
+        type: number
+      lng:
+        type: number
+      radius:
+        type: number
+      title:
+        type: string
+    type: object
+  location.CheckLocationRequest:
+    properties:
+      lat:
+        type: number
+      lng:
+        type: number
+      user_id:
+        type: string
+    type: object
+  location.LocationResponse:
+    properties:
+      id:
+        type: string
+      incident_ids:
+        items:
+          type: string
+        type: array
+      is_check:
+        type: boolean
+      lat:
+        type: number
+      lng:
+        type: number
+      timestamp:
+        type: string
+      user_id:
+        type: string
+    type: object
+  stats.StatsResponse:
+    properties:
+      user_count:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API ядро системы геооповещений, интегрируется с новостным порталом
+    (Django) через вебхуки.
+  title: 01_SPEC Geo-notification system core API
+  version: "1.0"
+paths:
+  /incidents:
+    get:
+      description: Получает все активные и неактивные инциденты с поддержкой пагинации
+      parameters:
+      - default: 10
+        description: Limit for pagination
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/incident.IncidentListResponse'
+        "400":
+          description: Invalid limit/offset
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+      summary: Get All Incidents
+      tags:
+      - incident
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новый инцидент с указанным заголовком, координатами и радиусом
+      parameters:
+      - description: Incident creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/incident.CreateIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/incident.IncidentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+      summary: Create Incidents
+      tags:
+      - incident
+  /incidents/{id}:
+    delete:
+      description: Деактивирует инцидент, не удаляя его полностью
+      parameters:
+      - description: Incident UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid UUID
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "404":
+          description: Incident not found
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+      summary: Deactivate Incident by ID
+      tags:
+      - incident
+    get:
+      description: Получает инцидент по UUID
+      parameters:
+      - description: Incident UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/incident.IncidentResponse'
+        "400":
+          description: Invalid UUID
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "404":
+          description: Incident not found
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+      summary: Get Incident by ID
+      tags:
+      - incident
+    patch:
+      consumes:
+      - application/json
+      description: Обновляет данные об инциденте (частичное обновление)
+      parameters:
+      - description: Incident UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/incident.UpdateIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/incident.IncidentResponse'
+        "400":
+          description: Invalid UUID or request body
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "404":
+          description: Incident not found
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+      summary: Update Incident by ID
+      tags:
+      - incident
+  /incidents/active:
+    get:
+      description: Получает все активные инциденты
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/incident.IncidentListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+      summary: Get All Active Incidents
+      tags:
+      - incident
+  /incidents/stats:
+    get:
+      description: Возвращает кол-во уникальных пользователей за последние N минут,
+        попавших в инцидент
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/stats.StatsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+      summary: Get Incidents Stats
+      tags:
+      - stats
+  /location/check:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает локации инцидентов, в которые попал пользователь
+      parameters:
+      - description: User location data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/location.CheckLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/location.LocationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httphelper.APIResponse'
+      summary: Check user location incidents
+      tags:
+      - location
+  /system/health:
+    get:
+      description: Проверка доступности API
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: ok'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health Check
+      tags:
+      - health
+swagger: "2.0"

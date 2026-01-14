@@ -23,7 +23,14 @@ func NewStatsHandler(service *usecase.StatsService, cfg *config.Config, lg *logg
 	}
 }
 
-// GetIncidentsStats возвращает кол-во уникальных пользователей за последние N минут
+// GetIncidentsStats godoc
+// @Summary Get Incidents Stats
+// @Description Возвращает кол-во уникальных пользователей за последние N минут, попавших в инцидент
+// @Tags stats
+// @Produce json
+// @Success 200 {object} stats.StatsResponse
+// @Failure 500 {object} httphelper.APIResponse
+// @Router /incidents/stats [get]
 func (h *StatsHandler) GetIncidentsStats(w http.ResponseWriter, r *http.Request) {
 	count, err := h.Service.GetUserCount(r.Context(), h.cfg.StatsTimeWindowMinutes)
 	if err != nil {
@@ -33,6 +40,6 @@ func (h *StatsHandler) GetIncidentsStats(w http.ResponseWriter, r *http.Request)
 	}
 
 	h.lg.Debug("StatsHandler.GetIncidentsStats: user count returned", "count", count, "minutes", h.cfg.StatsTimeWindowMinutes)
-	resp := map[string]int{"user_count": count}
+	resp := StatsResponse{UserCount: count}
 	httphelper.WriteJSON(w, resp, http.StatusOK)
 }
